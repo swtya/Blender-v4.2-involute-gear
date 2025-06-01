@@ -1,0 +1,35 @@
+schema_version = "1.0.0"
+
+# Manifest file for inv_gear following documentation at, 
+# https://docs.blender.org/manual/en/latest/advanced/extensions/getting_started.html
+# The id is case-sensitive with directory name!
+
+id = "involute_gear"
+name = "Involute Gear"
+version = "0.2.0"
+tagline = "Create an Involute profile Gear"
+# "description": "Makes gears that have the correct tooth profile"
+# "location": "View3D > Add > Mesh "
+
+type = "add-on"
+tags = ["Mesh"]
+blender_version_min = "4.2.0"
+
+maintainer = "Community (Swtya)"
+website = "https://github.com/swtya/Blender-v4.2-involute-gear"
+
+license = ["SPDX:GPL-3.0-or-later"]
+copyright = ["2012 : Ricard Bitriá Ribes"]
+# "author": "Ricard Bitriá Ribes on 2.xx, port to 4.2 by Swtya"
+
+# # These are the default build excluded patterns plus the testblends folder.
+# To build the zip file for release, on a clean checkout use: 
+# >>blender --command extension build --verbose
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  "testblends",
+  "/.*/",
+  "/.*",
+  "/*.zip",
+]
