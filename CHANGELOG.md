@@ -1,8 +1,21 @@
 # Changelog
 
-
 ---
 ### Version 0.2.0-for-4.2
+
+https://github.com/swtya/Blender-v4.2-involute-gear
+</br>Swtya
+
+New Features: 
+
+Fixes:
+* Non-manifold object as centre faces missing.
+
+Known Issues: 
+* No capacity to change an already generated gear.
+
+---
+### Version 0.2.0-for-4.2-alpha
 
 https://github.com/swtya/Blender-v4.2-involute-gear
 </br>Swtya

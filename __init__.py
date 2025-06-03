@@ -1,15 +1,12 @@
-bl_info = {
+"""
+old_info = {
     "name": "Involute Gear",
     "author": "Ricard Bitriá Ribes",
-    "version": (1, 1),
-    "blender": (2, 90, 0),
-    "location": "View3D > Add > Mesh > New Object",
+    "location": "View3D > Add > Mesh > Involute Gear",
     "description": "Adds an involute profile gear",
-    "warning": "",
-    "wiki_url": "",
     "category": "Add Mesh",
     }
-
+"""
 
 import bpy
 from bpy.types import Operator
@@ -48,26 +45,25 @@ def calc_max_beta(d):
         y=tan(beta)-beta+d
         if y == 0:
             return beta
-        elif y>0:
+        if y > 0:
             b=beta
         else:
             a=beta
         beta = (b+a)/2
     return beta
 
-#Calculates the shape of one tooth, result in polar coordinates
-#t      Tooth width
-#d      Z axis value
+# Calculates the shape of one tooth, result in polar coordinates
+# t      Tooth width
+# d      Z axis value
 def add_tooth(t, radius, Ra, Rd, base, p_angle, res):
     rinv = radius*cos(p_angle)
-    
+
     k = -t/4-(tan(p_angle)-p_angle)
     max_beta = calc_max_beta(k)
     beta = acos(rinv/(Ra))
-    if beta > max_beta:
-        beta = max_beta
+    beta = min(beta, max_beta)
     A = [k+I*tan(beta)/res for I in range(res+1)]
-        
+
     verts = []
     verts_polar = []
     for ii in A:
@@ -76,28 +72,28 @@ def add_tooth(t, radius, Ra, Rd, base, p_angle, res):
         d = sqrt(x**2+y**2)
         if d > Rd:
             verts.append((x,y))
-        
+
     verts_polar = [(cart2pol(verts[I])) for I in range(len(verts))]
 
     verts_polar += [(-verts_polar[I][0],verts_polar[I][1])for I in reversed(range(len(verts_polar)))]
     return verts_polar
 
-def add_gear(teethNum, Dp, Ad, De, base, p_angle, t_res, r_res, 
+def add_gear(teethNum, Dp, Ad, De, base, p_angle, t_res, r_res,
              width=1, skew=0, conangle=0, crown=0.0):
     # Initial calculations
-    t=2*pi/teethNum;
+    t=2*pi/teethNum
     radius = Dp/2
     Ra = radius + Ad
     Rd = radius - De
     Rb = Rd - base
-    
+
     # Generate vertex for single tooth (in polar coordinates)
     verts_pol = add_tooth(t, radius, Ra, Rd, base, p_angle, t_res)
     verts_pol = [(verts_pol[0][0], Rd)] + verts_pol + [(verts_pol[-1][0], Rd)]
-    
+
     # Store the number of vertex per tooth
     tooth_vert_cnt = len(verts_pol)
-    
+
     # Generate vertex for all teeth
     theta = (verts_pol[-1][0]-verts_pol[0][0])/(r_res+1)
     beta = (t-(verts_pol[-1][0]-verts_pol[0][0]))/(r_res+1)
@@ -107,9 +103,9 @@ def add_gear(teethNum, Dp, Ad, De, base, p_angle, t_res, r_res,
         ver_pol = [(verts_pol[I][0]+k, verts_pol[I][1]) for I in range(len(verts_pol))]
         ring_verts_pol.extend([(ver_pol[0][0]+theta*I, Rd) for I in range(1,r_res+1)])
         ring_verts_pol.extend([(ver_pol[-1][0]+beta*I, Rd) for I in range(1,r_res+1)])
-        
+
         verts.extend(pol2cart(ver_pol[I][0], ver_pol[I][1], width) for I in range(len(ver_pol)))
-    
+
     # Generate inner vertex
     ring_verts=[]
     ring_verts.extend(
@@ -132,26 +128,26 @@ def add_gear(teethNum, Dp, Ad, De, base, p_angle, t_res, r_res,
                 ))
     # Store the number of vertices of the base circle
     Rb_circ_cnt = len(ring_verts) - Rd_circ_cnt
-                
+
     # Store the number of vertex of all teeth (one side only)
     teeth_vert_cnt = len(verts)
-    
+
     verts.extend(reversed([(verts[I][0], verts[I][1], -verts[I][2])for I in range(len(verts))]))
     verts.extend(ring_verts)
 
 # Create faces
-  # Create bottom and upper faces 
-    # for each tooth 
+  # Create bottom and upper faces
+    # for each tooth
     faces=[]
     for I in range(teethNum*2):
         if I < teethNum:
-            faces.append(list(range(I*tooth_vert_cnt,(I+1)*tooth_vert_cnt)) + 
-                        [teeth_vert_cnt*2 + r_res*2*I + J for J in reversed(range(r_res))])
+            faces.append(list(range(I*tooth_vert_cnt, (I+1)*tooth_vert_cnt)) +
+                         [teeth_vert_cnt*2 + r_res*2*I + J for J in reversed(range(r_res))])
         else:
-            faces.append(list(range(I*tooth_vert_cnt,(I+1)*tooth_vert_cnt)) + 
-                        [teeth_vert_cnt*2 + r_res*2*I+J for J in reversed(range(r_res, 2*r_res))])
-    
-    # for th ring
+            faces.append(list(range(I*tooth_vert_cnt, (I+1)*tooth_vert_cnt)) +
+                         [teeth_vert_cnt*2 + r_res*2*I + J for J in reversed(range(r_res, 2*r_res))])
+
+    # for the ring
     state = 0
     J = 0
     K = 0
@@ -171,7 +167,8 @@ def add_gear(teethNum, Dp, Ad, De, base, p_angle, t_res, r_res,
             else:
                 faces.append([strt-1, teeth_vert_cnt, strt+Rd_circ_cnt+Rb_circ_cnt//2, len(verts)-1 ])
         elif r_res == 0:
-            faces.append([tooth_vert_cnt*((K+1)//2)-(K%2), tooth_vert_cnt*((K+2)//2)-((K-1)%2), strt+Rd_circ_cnt+I+1, strt+Rd_circ_cnt+I])
+            faces.append([tooth_vert_cnt*((K+1)//2)-(K%2), tooth_vert_cnt*((K+2)//2)-((K-1)%2),
+                          strt+Rd_circ_cnt+I+1, strt+Rd_circ_cnt+I])
             K += 1
         elif state == 0:
             faces.append([tooth_vert_cnt*((K+1)//2)-(K%2), strt+J, strt+Rd_circ_cnt+I+1, strt+Rd_circ_cnt+I])
@@ -180,12 +177,10 @@ def add_gear(teethNum, Dp, Ad, De, base, p_angle, t_res, r_res,
             J += r_res
             faces.append([strt+J-1, tooth_vert_cnt*((K+1)//2)-(K%2), strt+Rd_circ_cnt+I+1, strt+Rd_circ_cnt+I])
             state = -1
-            
         else:
             faces.append([strt+J+state-1, strt+J+state, strt+Rd_circ_cnt+I+1, strt+Rd_circ_cnt+I])
-            
         state += 1
-    
+
   # Create side faces
     # Outer faces
     for I in range(teethNum):
@@ -201,21 +196,28 @@ def add_gear(teethNum, Dp, Ad, De, base, p_angle, t_res, r_res,
                     faces.append([strt-1, 0, teeth_vert_cnt-1, teeth_vert_cnt])
             elif state == 0:
                 if r_res != 0:
-                    faces.append([tooth_vert_cnt*(I+1)-1, strt-tooth_vert_cnt*(I+1), strt+Rd_circ_cnt-(I*2+1)*r_res-1, strt+(I*2+1)*r_res])
+                    faces.append([tooth_vert_cnt*(I+1)-1, strt-tooth_vert_cnt*(I+1),
+                                  strt+Rd_circ_cnt-(I*2+1)*r_res-1, strt+(I*2+1)*r_res])
                 else:
-                    faces.append([tooth_vert_cnt*(I+1)-1, strt-tooth_vert_cnt*(I+1), strt-tooth_vert_cnt*(I+1)-1, tooth_vert_cnt*(I+1)])
+                    faces.append([tooth_vert_cnt*(I+1)-1, strt-tooth_vert_cnt*(I+1),
+                                  strt-tooth_vert_cnt*(I+1)-1, tooth_vert_cnt*(I+1)])
             elif state == r_res:
-                faces.append([strt-tooth_vert_cnt*(I+1)-1, tooth_vert_cnt*(I+1), strt-1+(I+1)*2*r_res, strt+Rd_circ_cnt-(I+1)*2*r_res])
+                faces.append([strt-tooth_vert_cnt*(I+1)-1, tooth_vert_cnt*(I+1),
+                              strt-1+(I+1)*2*r_res, strt+Rd_circ_cnt-(I+1)*2*r_res])
             else:
-                faces.append([strt+state+(I*2+1)*r_res, strt+state-1+(I*2+1)*r_res, strt+Rd_circ_cnt-(I*2+1)*r_res-state, strt+Rd_circ_cnt-(I*2+1)*r_res-state-1])
+                faces.append([strt+state+(I*2+1)*r_res, strt+state-1+(I*2+1)*r_res,
+                              strt+Rd_circ_cnt-(I*2+1)*r_res-state, strt+Rd_circ_cnt-(I*2+1)*r_res-state-1])
             state += 1
-            
-    #Create inner faces
-    strt = strt+Rd_circ_cnt
-    for I in range(int(Rb_circ_cnt/2)):
-        a=1
-        #faces.append([strt+state+(I*2+1)*points, 0,1,2])
-    
+
+    # Inner core faces
+    vert_list_top_inner_ring = [2*teeth_vert_cnt + Rd_circ_cnt + inc
+                                for inc in range(int(Rb_circ_cnt/2))]
+    vert_list_bottom_inner_ring = [2*teeth_vert_cnt + Rd_circ_cnt + inc + int(Rb_circ_cnt/2)
+                                   for inc in range(int(Rb_circ_cnt / 2))]
+    for inc in range(len(vert_list_top_inner_ring)):
+        faces.append([vert_list_top_inner_ring[inc-1], vert_list_top_inner_ring[inc],
+                      vert_list_bottom_inner_ring[-inc-1], vert_list_bottom_inner_ring[-inc] ])
+
     return verts,faces
 
 def add_object(self, context):
@@ -229,7 +231,7 @@ def add_object(self, context):
     # useful for development when the mesh may be invalid.
     # is_not_mesh_valid = mesh.validate(verbose=True)
     # if is_not_mesh_valid:
-    #     print('the gear mesh is broken')
+    #     print('Note: The Involute Gear mesh is broken')
     object_data_add(context, mesh, operator=self)
 
 
@@ -257,7 +259,7 @@ class OBJECT_OT_add_inv_gear(Operator, AddObjectHelper):
         self.state = 1
         self.pitch_diameter = self.modulus * self.number_of_teeth
         self.base = self.size_factor*(self.pitch_diameter/2-self.dedendum)
-        
+
     def base_update(self, context):
         radius = self.pitch_diameter/2
         if self.state == 0:
@@ -269,13 +271,13 @@ class OBJECT_OT_add_inv_gear(Operator, AddObjectHelper):
     state : IntProperty(
             default = 0
             )
-            
+
     size_factor : FloatProperty(
             default = 0.5,
             min = 0.0,
             max = 1.0
             )
-    
+
     number_of_teeth : IntProperty(
             name="Number of Teeth",
             description="Number of teeth on the gear",
@@ -303,7 +305,7 @@ class OBJECT_OT_add_inv_gear(Operator, AddObjectHelper):
             description="Pitch diameter divided by the number of teeth",
             update=modulus_update
             )
-    
+
     addendum : FloatProperty(
             name="Addendum",
             min=0.0001,
@@ -311,7 +313,7 @@ class OBJECT_OT_add_inv_gear(Operator, AddObjectHelper):
             subtype='DISTANCE',
             description="Addendum, extent of tooth above radius"
             )
-    
+
     dedendum : FloatProperty(name="Dedendum",
             description="Dedendum, extent of tooth below radius",
             min=0.0001,
@@ -319,7 +321,7 @@ class OBJECT_OT_add_inv_gear(Operator, AddObjectHelper):
             subtype='DISTANCE',
             default=0.1
             )
-            
+
     angle : FloatProperty(name="Pressure Angle",
             description="Pressure angle, skewness of tooth tip",
             min=0.0,
@@ -327,6 +329,7 @@ class OBJECT_OT_add_inv_gear(Operator, AddObjectHelper):
             subtype='ANGLE',
             default=radians(20.0)
             )
+
     base : FloatProperty(name="Base",
             description="Base, extent of gear below radius",
             min=0.0001,
@@ -335,6 +338,7 @@ class OBJECT_OT_add_inv_gear(Operator, AddObjectHelper):
             default=0.375,
             update=base_update
             )
+
     width : FloatProperty(name="Width",
             description="Width, thickness of gear",
             min=0.05,
@@ -342,21 +346,21 @@ class OBJECT_OT_add_inv_gear(Operator, AddObjectHelper):
             subtype='DISTANCE',
             default=0.2
             )
-            
+
     tooth_res : IntProperty(name="Tooth resolution",
             description="Subdivision multiplier for tooth calculation",
             min=1,
             max=1024,
             default=8
             )
-            
+
     ring_res : IntProperty(name="Ring resolution",
             description="Subdivision multiplier for circle calculations",
             min=0,
             max=128,
             default=2
             )
-            
+
     manual_mod : BoolProperty(name="Manual mode",
             description="Custom / Automatic gear parameters",
             default = False
@@ -369,32 +373,57 @@ class OBJECT_OT_add_inv_gear(Operator, AddObjectHelper):
         box.prop(self, 'number_of_teeth')
         box.prop(self, 'pitch_diameter')
         box.prop(self, 'modulus')
-        
+
         box = layout.box()
         box.prop(self, 'angle')
         box.prop(self, 'width')
         box.prop(self, 'base')
-        
+
         layout.prop(self, 'manual_mod')
         box = layout.box()
         box.enabled = self.manual_mod
         box.prop(self, 'dedendum')
         box.prop(self, 'addendum')
-        
+
         box = layout.box()
         box.prop(self, 'tooth_res')
         box.prop(self, 'ring_res')
 
     def execute(self, context):
+
+        me_time_doubles = 0
+        if me_time_doubles:
+            import time
+            begin = time.time()
+
+
         radius = self.pitch_diameter/2
         if self.dedendum > radius-self.base:
             self.dedendum = radius-self.base
-            
-        if self.manual_mod == False:
+
+        if not self.manual_mod:
             self.dedendum = 1.25*self.modulus
             self.addendum = 1*self.modulus
-            
+
         add_object(self, context)
+
+
+        if me_time_doubles:
+            ''''''
+            start = time.time()
+            dp3 = 0.0005
+            threshold = dp3
+            self.report({'INFO'}, "threshold is: " + str(threshold))
+            bpy.ops.object.mode_set(mode="EDIT")
+            bpy.ops.mesh.select_mode(type="VERT")
+            bpy.ops.mesh.reveal()
+            bpy.ops.mesh.select_all(action="SELECT")
+            bpy.ops.mesh.remove_doubles(threshold=threshold)
+            bpy.ops.object.mode_set(mode="OBJECT")
+            end = time.time()
+            self.report({'INFO'}, "Time ops.mesh to remove_doubles  : " + str(end - start))
+            self.report({'INFO'}, "Whole Involute Gear function took: " + str(end - begin))
+
 
         return {'FINISHED'}
 
